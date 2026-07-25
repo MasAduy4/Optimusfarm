@@ -26,9 +26,13 @@ Route::get('/', function () {
 */
 Route::middleware(['auth'])->group(function () {
 
-    // Dashboard umum
+    // Dashboard umum (dispatch ke admin.dashboard / user.dashboard)
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
+
+    // Route untuk Dashboard Universal (diakses lewat tombol Navbar "Dashboard")
+    Route::get('/dashboard-universal', [DashboardController::class, 'universal'])
+        ->name('dashboard.universal');
 
     /* ---------- API / AKSI LAPORAN (Tanpa Sekat Middleware Role) ---------- */
     // Ditaruh di luar middleware role agar request PATCH/DELETE dari Inertia langsung masuk tanpa tertahan redirect

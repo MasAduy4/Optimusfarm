@@ -6,7 +6,6 @@ import {
   Users,
   Sprout,
   Wallet,
-  ClipboardList,
   ChevronRight,
   BadgeCheck,
   Clock,
@@ -16,6 +15,9 @@ import {
   AlertTriangle,
   Trash2,
   FileText,
+  Download,
+  Printer,
+  Sparkles,
 } from 'lucide-react';
 
 const rupiah = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
@@ -38,24 +40,6 @@ function StatCard({ icon: Icon, label, value, sub, tone = 'emerald' }) {
       <div className="mt-4 text-3xl font-[Sora,ui-sans-serif] font-bold tracking-tight">{value}</div>
       <div className="text-sm opacity-80 mt-1">{label}</div>
     </div>
-  );
-}
-
-function QuickLink({ href, icon: Icon, title, desc }) {
-  return (
-    <Link
-      href={href}
-      className="group rounded-3xl bg-white border border-emerald-900/10 p-6 hover:border-emerald-700/40 hover:shadow-lg hover:shadow-emerald-900/5 transition-all flex items-start gap-4"
-    >
-      <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-800 grid place-items-center group-hover:bg-emerald-800 group-hover:text-amber-300 transition-colors">
-        <Icon className="w-6 h-6" />
-      </div>
-      <div className="flex-1">
-        <div className="font-[Sora,ui-sans-serif] font-semibold text-lg tracking-tight">{title}</div>
-        <div className="text-sm text-emerald-900/60 mt-1">{desc}</div>
-      </div>
-      <ChevronRight className="w-5 h-5 text-emerald-900/30 group-hover:text-emerald-800 group-hover:translate-x-0.5 transition-all" />
-    </Link>
   );
 }
 
@@ -83,6 +67,11 @@ export default function AdminIndex({ stats = {}, laporanTerbaru = [] }) {
     setModal({ show: true, item, actionStatus });
   };
 
+  // Trigger download / cetak PDF via Native Print
+  const handleDownloadPDF = () => {
+    window.print();
+  };
+
   // 1. Eksekusi Validasi Laporan (PATCH)
   const executeUpdateStatus = (e) => {
     if (e) {
@@ -95,7 +84,6 @@ export default function AdminIndex({ stats = {}, laporanTerbaru = [] }) {
       return;
     }
 
-    // Menembak endpoint khusus update status laporan
     router.patch(`/admin/laporan/${modal.item.id}/status`, { 
       status: modal.actionStatus 
     }, {
@@ -120,7 +108,6 @@ export default function AdminIndex({ stats = {}, laporanTerbaru = [] }) {
     }
 
     if (confirm('Apakah Anda yakin ingin menghapus laporan ini?')) {
-      // Menembak endpoint khusus hapus laporan
       router.delete(`/admin/laporan/${id}`, {
         preserveScroll: true,
         onError: (err) => console.error("Error delete:", err)
@@ -132,15 +119,37 @@ export default function AdminIndex({ stats = {}, laporanTerbaru = [] }) {
     <AppLayout title="Dashboard Admin">
       <Head title="Dashboard Admin — OptimusFarm" />
 
+      {/* Style CSS khusus Cetak/PDF */}
+      <style>{`
+        @media print {
+          body {
+            background: white !important;
+            color: black !important;
+          }
+          /* Sembunyikan tombol, aksi, modal, dan elemen non-cetak */
+          .print\\:hidden, button, .no-print {
+            display: none !important;
+          }
+          .print\\:block {
+            display: block !important;
+          }
+          .shadow-sm, .shadow-lg, .shadow-2xl {
+            box-shadow: none !important;
+          }
+          .border {
+            border-color: #e2e8f0 !important;
+          }
+        }
+      `}</style>
+
       <div className="flex items-end justify-between mb-6 flex-wrap gap-4">
         <div>
-          <p className="text-sm text-emerald-800/70">Selamat datang kembali,</p>
           <h2 className="font-[Sora,ui-sans-serif] text-3xl font-bold tracking-tight">Ringkasan Operasional</h2>
         </div>
         {stats.menungguValidasi > 0 && (
           <Link
             href="/admin/laporan"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-emerald-950 font-semibold text-sm shadow-lg shadow-amber-500/20 transition"
+            className="print:hidden inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-emerald-950 font-semibold text-sm shadow-lg shadow-amber-500/20 transition"
           >
             <Clock className="w-4 h-4" />
             {stats.menungguValidasi} laporan menunggu validasi
@@ -156,13 +165,36 @@ export default function AdminIndex({ stats = {}, laporanTerbaru = [] }) {
         <StatCard icon={Wallet} label="Finansial"      value={rupiah(stats.finansial)}              tone="amber" />
       </div>
 
-      {/* Quick nav */}
-      <div className="mt-10">
-        <h3 className="font-[Sora,ui-sans-serif] text-xl font-bold tracking-tight mb-4">Manajemen</h3>
+      {/* Section Manajemen Baru: Tombol Unduh Laporan PDF */}
+      <div className="mt-10 print:hidden">
+        <h3 className="font-[Sora,ui-sans-serif] text-xl font-bold tracking-tight mb-4">Manajemen & Ekspor</h3>
         <div className="grid md:grid-cols-3 gap-4">
-          <QuickLink href="/admin/lahan"   icon={MapPin}         title="Kelola Lahan"       desc="Tambah, edit, dan validasi profil lahan pertanian." />
-          <QuickLink href="/admin/poktan"  icon={Users}          title="Kelompok Tani"      desc="Data poktan, anggota, dan penanggung jawab lapangan." />
-          <QuickLink href="/admin/laporan" icon={ClipboardList}  title="Laporan & Validasi" desc="Tinjau aktivitas harian & hasil panen dari petani." />
+          <div
+            onClick={handleDownloadPDF}
+            className="group relative cursor-pointer overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-950 p-6 text-white shadow-md hover:shadow-xl hover:shadow-emerald-900/20 transition-all duration-300 border border-emerald-700/30 flex items-center justify-between"
+          >
+            {/* Hiasan background kilau */}
+            <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-amber-400/10 rounded-full blur-2xl group-hover:bg-amber-400/20 transition-all"></div>
+            
+            <div className="flex items-center gap-4 z-10">
+              <div className="w-14 h-14 rounded-2xl bg-amber-400 text-emerald-950 grid place-items-center shadow-lg shadow-amber-400/20 group-hover:scale-105 transition-transform duration-300">
+                <Download className="w-7 h-7" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 font-[Sora,ui-sans-serif] font-bold text-lg tracking-tight text-emerald-50">
+                  Unduh Laporan
+                  <Sparkles className="w-4 h-4 text-amber-300" />
+                </div>
+                <div className="text-xs text-emerald-200/80 mt-1">
+                  Cetak rekap operasional & ringkasan laporan ke file PDF.
+                </div>
+              </div>
+            </div>
+
+            <div className="z-10 p-2.5 rounded-xl bg-white/10 group-hover:bg-amber-400 group-hover:text-emerald-950 text-white transition-all duration-300">
+              <Printer className="w-5 h-5" />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -170,7 +202,7 @@ export default function AdminIndex({ stats = {}, laporanTerbaru = [] }) {
       <div className="mt-10 rounded-3xl bg-white border border-emerald-900/10 overflow-hidden shadow-sm">
         <div className="flex items-center justify-between px-6 py-4 border-b border-emerald-900/10">
           <h3 className="font-[Sora,ui-sans-serif] text-lg font-bold tracking-tight">Laporan Terbaru</h3>
-          <Link href="/admin/laporan" className="text-sm font-semibold text-emerald-800 hover:text-emerald-900 inline-flex items-center gap-1">
+          <Link href="/admin/laporan" className="print:hidden text-sm font-semibold text-emerald-800 hover:text-emerald-900 inline-flex items-center gap-1">
             Lihat semua <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
@@ -185,7 +217,7 @@ export default function AdminIndex({ stats = {}, laporanTerbaru = [] }) {
                 <th className="text-left px-6 py-3 font-semibold">Catatan Aktivitas</th>
                 <th className="text-left px-6 py-3 font-semibold">Tanggal</th>
                 <th className="text-left px-6 py-3 font-semibold">Status</th>
-                <th className="text-right px-6 py-3 font-semibold">Aksi</th>
+                <th className="text-right px-6 py-3 font-semibold print:hidden">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-emerald-900/5">
@@ -210,7 +242,7 @@ export default function AdminIndex({ stats = {}, laporanTerbaru = [] }) {
                     </td>
                     <td className="px-6 py-3.5 text-emerald-900/70">{r.tanggal}</td>
                     <td className="px-6 py-3.5"><StatusPill status={r.status} /></td>
-                    <td className="px-6 py-3.5 text-right">
+                    <td className="px-6 py-3.5 text-right print:hidden">
                       <div className="inline-flex items-center gap-1.5 justify-end">
                         {r.status === 'Menunggu Validasi' ? (
                           <>
@@ -233,7 +265,6 @@ export default function AdminIndex({ stats = {}, laporanTerbaru = [] }) {
                           <span className="text-xs text-emerald-900/40 italic mr-1">Selesai</span>
                         )}
 
-                        {/* Tombol Hapus Laporan */}
                         <button
                           type="button"
                           onClick={(e) => handleDelete(e, r.id)}
@@ -254,7 +285,7 @@ export default function AdminIndex({ stats = {}, laporanTerbaru = [] }) {
 
       {/* POP-UP MODAL KONFIRMASI */}
       {modal.show && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm grid place-items-center p-4">
+        <div className="print:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm grid place-items-center p-4">
           <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">

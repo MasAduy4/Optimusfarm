@@ -11,7 +11,7 @@ use Inertia\Inertia;
 class DashboardController extends Controller
 {
     /**
-     * /dashboard — dispatch berdasarkan role
+     * Redirect dashboard berdasarkan role user
      */
     public function index(Request $request)
     {
@@ -23,37 +23,166 @@ class DashboardController extends Controller
     }
 
     /**
-     * /admin/dashboard
+     * Dashboard Universal (Tampilan gabungan laporan panen & aktivitas)
+     */
+    public function universal(Request $request)
+    {
+        $user = $request->user();
+
+        $totalLahan = class_exists(Lahan::class) ? Lahan::count() : 0;
+        if ($totalLahan === 0 && class_exists(Laporan::class)) {
+            $totalLahan = Laporan::whereNotNull('blok')->where('blok', '!=', '-')->distinct('blok')->count('blok');
+        }
+
+        $allLaporan = class_exists(Laporan::class) ? Laporan::with('user')->latest()->get() : collect([]);
+
+        // Filter Laporan Hasil Panen (Gunakan str_contains tanpa peduli huruf besar/kecil)
+        $laporanPanen = $allLaporan->filter(function ($item) {
+            $jenis = strtolower(trim($item->jenis ?? ''));
+            return str_contains($jenis, 'panen');
+        });
+
+        // Filter Laporan Aktivitas Harian
+        $laporanAktivitas = $allLaporan->filter(function ($item) {
+            $jenis = strtolower(trim($item->jenis ?? ''));
+            return !str_contains($jenis, 'panen');
+        });
+
+        // Hitung total panen (KG)
+        $totalPanenKg = $allLaporan->where('status', 'Tervalidasi')->sum(function ($item) {
+            return floatval($item->jumlah_panen_kg ?? $item->hasil_panen ?? 0);
+        });
+
+        // Hitung total pendapatan panen (Rp)
+        $totalPendapatan = $laporanPanen->where('status', 'Tervalidasi')->sum(function ($item) {
+            return floatval($item->total_pendapatan ?? $item->biaya ?? 0);
+        });
+
+        // Hitung total biaya operasional (Rp)
+        $totalBiaya = $laporanAktivitas->where('status', 'Tervalidasi')->sum(function ($item) {
+            return floatval($item->biaya ?? 0);
+        });
+
+        $stats = [
+            'totalLahan'       => $totalLahan,
+            'totalPetani'      => User::where('role', 'user')->count(),
+            'totalPanen'       => $totalPanenKg,
+            'finansial'        => $totalPendapatan - $totalBiaya,
+            'totalPendapatan'  => $totalPendapatan,
+            'totalBiaya'       => $totalBiaya,
+        ];
+
+        // Mapping Data Aktivitas Harian
+        $dataAktivitas = $laporanAktivitas->take(10)->map(function ($item) {
+            return [
+                'id'        => $item->id,
+                'petani'    => $item->user->name ?? 'Petani',
+                'blok'      => $item->blok ?? '-',
+                'jenis'     => $item->jenis ?? 'Aktivitas Harian',
+                'biaya'     => floatval($item->biaya ?? 0),
+                'catatan'   => $item->catatan ?? '-',
+                'tanggal'   => $item->tanggal ?? ($item->created_at ? $item->created_at->format('Y-m-d') : '-'),
+                'status'    => $item->status ?? 'Menunggu Validasi',
+            ];
+        })->values()->toArray();
+
+        // Mapping Data Hasil Panen
+        $dataPanen = $laporanPanen->take(10)->map(function ($item) {
+            // Ambil nominal pendapatan secara fleksibel
+            $pendapatan = floatval($item->total_pendapatan ?? 0);
+            if ($pendapatan == 0) {
+                $pendapatan = floatval($item->biaya ?? 0);
+            }
+
+            // Ambil berat panen secara fleksibel
+            $beratKg = floatval($item->jumlah_panen_kg ?? $item->hasil_panen ?? 0);
+
+            return [
+                'id'               => $item->id,
+                'petani'           => $item->user->name ?? 'Petani',
+                'blok'             => $item->blok ?? '-',
+                'komoditas'        => $item->komoditas ?? 'Padi',
+                'jenis'            => $item->jenis ?? 'Hasil Panen',
+                'hasil_panen'      => $beratKg,
+                'jumlah_panen_kg'  => $beratKg,
+                'total_pendapatan' => $pendapatan,
+                'biaya'            => $pendapatan,
+                'catatan'          => $item->catatan ?? '-',
+                'tanggal'          => $item->tanggal ?? ($item->created_at ? $item->created_at->format('Y-m-d') : '-'),
+                'status'           => $item->status ?? 'Menunggu Validasi',
+            ];
+        })->values()->toArray();
+
+        return Inertia::render('DashboardUniversal', [
+            'user'             => [
+                'name' => $user->name,
+                'role' => $user->role,
+            ],
+            'stats'            => $stats,
+            'laporanAktivitas' => $dataAktivitas,
+            'laporanPanen'     => $dataPanen,
+            'laporanTerbaru'   => array_merge($dataAktivitas, $dataPanen),
+        ]);
+    }
+
+    /**
+     * Dashboard Khusus Admin
      */
     public function admin()
     {
+        $totalLahan = class_exists(Lahan::class) ? Lahan::count() : 0;
+        if ($totalLahan === 0 && class_exists(Laporan::class)) {
+            $totalLahan = Laporan::whereNotNull('blok')->where('blok', '!=', '-')->distinct('blok')->count('blok');
+        }
+
+        $allLaporan = class_exists(Laporan::class) ? Laporan::with('user')->latest()->get() : collect([]);
+
+        $laporanPanen = $allLaporan->filter(fn($item) => str_contains(strtolower($item->jenis ?? ''), 'panen'));
+        $laporanAktivitas = $allLaporan->filter(fn($item) => !str_contains(strtolower($item->jenis ?? ''), 'panen'));
+
+        $totalPanenKg = $allLaporan->where('status', 'Tervalidasi')->sum(function ($item) {
+            return floatval($item->jumlah_panen_kg ?? $item->hasil_panen ?? 0);
+        });
+
+        $totalPendapatan = $laporanPanen->where('status', 'Tervalidasi')->sum(function ($item) {
+            return floatval($item->total_pendapatan ?? $item->biaya ?? 0);
+        });
+
+        $totalBiaya = $laporanAktivitas->where('status', 'Tervalidasi')->sum(function ($item) {
+            return floatval($item->biaya ?? 0);
+        });
+
         $stats = [
-            'totalLahan'       => class_exists(Lahan::class) ? Lahan::count() : 0,
+            'totalLahan'       => $totalLahan,
             'totalPetani'      => User::where('role', 'user')->count(),
-            'totalPanen'       => class_exists(Laporan::class) ? (Laporan::sum('jumlah_panen_kg') ?? 0) : 0,
-            'finansial'        => class_exists(Laporan::class) ? (Laporan::sum('total_pendapatan') ?? 0) : 0,
-            'menungguValidasi' => class_exists(Laporan::class) ? Laporan::where('status', 'Menunggu Validasi')->count() : 0,
+            'totalPanen'       => $totalPanenKg,
+            'finansial'        => $totalPendapatan - $totalBiaya,
+            'menungguValidasi' => $allLaporan->where('status', 'Menunggu Validasi')->count(),
         ];
 
-        $laporanTerbaru = class_exists(Laporan::class) 
-            ? Laporan::with('user')
-                ->latest()
-                ->take(10)
-                ->get()
-                ->map(function ($item) {
-                    return [
-                        'id'               => $item->id,
-                        'petani'           => $item->user->name ?? 'Petani',
-                        'blok'             => $item->blok ?? '-',
-                        'jenis'            => $item->jenis ?? '-',
-                        'catatan'          => $item->catatan ?? '-',
-                        'tanggal'          => $item->tanggal ?? ($item->created_at ? $item->created_at->format('Y-m-d') : '-'),
-                        'biaya'            => $item->biaya ?? 0,
-                        'total_pendapatan' => $item->total_pendapatan ?? 0,
-                        'status'           => $item->status ?? 'Menunggu Validasi',
-                    ];
-                })->toArray()
-            : [];
+        $laporanTerbaru = $allLaporan->take(15)->map(function ($item) {
+            $isPanen = str_contains(strtolower($item->jenis ?? ''), 'panen');
+            $pendapatan = floatval($item->total_pendapatan ?? 0);
+            if ($pendapatan == 0 && $isPanen) {
+                $pendapatan = floatval($item->biaya ?? 0);
+            }
+            $biaya = floatval($item->biaya ?? 0);
+
+            return [
+                'id'               => $item->id,
+                'petani'           => $item->user->name ?? 'Petani',
+                'blok'             => $item->blok ?? '-',
+                'komoditas'        => $item->komoditas ?? 'Padi',
+                'jenis'            => $item->jenis ?? '-',
+                'catatan'          => $item->catatan ?? '-',
+                'tanggal'          => $item->tanggal ?? ($item->created_at ? $item->created_at->format('Y-m-d') : '-'),
+                'biaya'            => $biaya,
+                'total_pendapatan' => $pendapatan,
+                'nominal'          => $isPanen ? $pendapatan : $biaya,
+                'hasil_panen'      => floatval($item->jumlah_panen_kg ?? $item->hasil_panen ?? 0),
+                'status'           => $item->status ?? 'Menunggu Validasi',
+            ];
+        })->values()->toArray();
 
         return Inertia::render('Admin/Index', [
             'stats'          => $stats,
@@ -62,10 +191,7 @@ class DashboardController extends Controller
     }
 
     /**
-     * Update status validasi laporan (Terima / Tolak)
-     */
-    /**
-     * Update status validasi laporan (Terima / Tolak)
+     * Update Status Laporan dari Dashboard Admin
      */
     public function updateStatus(Request $request, $id)
     {
@@ -80,12 +206,11 @@ class DashboardController extends Controller
             ]);
         }
 
-        // Redirect eksplisit ke route admin dashboard
         return redirect()->route('admin.dashboard', [], 303);
     }
 
     /**
-     * Hapus laporan
+     * Hapus Laporan dari Dashboard Admin
      */
     public function destroy($id)
     {
@@ -94,12 +219,11 @@ class DashboardController extends Controller
             $laporan->delete();
         }
 
-        // Redirect eksplisit ke route admin dashboard
         return redirect()->route('admin.dashboard', [], 303);
     }
 
     /**
-     * /user/dashboard
+     * Dashboard Khusus Petani (User)
      */
     public function user(Request $request)
     {
@@ -133,9 +257,11 @@ class DashboardController extends Controller
                             'id'               => $item->id,
                             'jenis'            => $item->jenis,
                             'blok'             => $item->blok ?? '-',
+                            'komoditas'        => $item->komoditas ?? 'Padi',
                             'tanggal'          => $item->tanggal ?? ($item->created_at ? $item->created_at->format('Y-m-d') : '-'),
-                            'biaya'            => $item->biaya ?? 0,
-                            'total_pendapatan' => $item->total_pendapatan ?? 0,
+                            'biaya'            => floatval($item->biaya ?? 0),
+                            'total_pendapatan' => floatval($item->total_pendapatan ?? $item->biaya ?? 0),
+                            'hasil_panen'      => floatval($item->jumlah_panen_kg ?? $item->hasil_panen ?? 0),
                             'catatan'          => $item->catatan,
                             'status'           => $item->status,
                         ];

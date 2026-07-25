@@ -3,7 +3,6 @@ import { useState } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import {
   Sprout,
-  ClipboardList,
   Sparkles,
   Send,
   MapPin,
@@ -12,6 +11,7 @@ import {
   CalendarDays,
   XCircle,
   Coins,
+  Scale,
 } from 'lucide-react';
 
 const rupiah = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
@@ -41,6 +41,7 @@ export default function UserIndex({ user = {}, lahanSaya = [], riwayat = [] }) {
     catatan: '',
     biaya: '',
     panen: '',
+    hasil_panen: '',
   });
 
   const submit = (e) => {
@@ -51,67 +52,39 @@ export default function UserIndex({ user = {}, lahanSaya = [], riwayat = [] }) {
       jenis: tab,
       biaya: tab !== 'Hasil Panen' && d.biaya ? parseFloat(d.biaya) : 0,
       total_pendapatan: tab === 'Hasil Panen' && d.panen ? parseFloat(d.panen) : 0,
+      jumlah_panen_kg: tab === 'Hasil Panen' && d.hasil_panen ? parseFloat(d.hasil_panen) : 0,
+      hasil_panen: tab === 'Hasil Panen' && d.hasil_panen ? parseFloat(d.hasil_panen) : 0,
     }));
 
     post('/user/laporan', {
       preserveScroll: true,
       onSuccess: () => {
-        reset('catatan', 'biaya', 'panen', 'blok');
+        reset('catatan', 'biaya', 'panen', 'hasil_panen', 'blok');
       },
     });
   };
 
   const tabs = [
-    { key: 'Aktivitas Harian',   icon: Sparkles },
-    { key: 'Bahan & Obat',       icon: ClipboardList },
-    { key: 'Hasil Panen',        icon: Sprout },
+    { key: 'Aktivitas Harian', icon: Sparkles },
+    { key: 'Hasil Panen', icon: Sprout },
   ];
 
   return (
     <AppLayout title="Dashboard Petani">
       <Head title="Dashboard — OptimusFarm" />
-
-      <div className="mb-6">
-        <p className="text-sm text-emerald-800/70">Halo,</p>
-        <h2 className="font-[Sora,ui-sans-serif] text-3xl font-bold tracking-tight">{user.name ?? 'Petani'} 👋</h2>
-        <p className="text-sm text-emerald-800/70 mt-1">Catat aktivitas hari ini agar profil lahanmu tetap up-to-date.</p>
-      </div>
-
-      {/* Ringkasan lahan */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-        {lahanSaya.length === 0 && (
-          <div className="col-span-full rounded-3xl bg-white border border-dashed border-emerald-900/15 p-8 text-center text-emerald-900/60">
-            Belum ada lahan terdaftar. Hubungi admin untuk mendaftarkan lahanmu.
-          </div>
-        )}
-        {lahanSaya.map((l) => (
-          <div key={l.id} className="rounded-3xl bg-white border border-emerald-900/10 p-5 hover:shadow-md transition">
-            <div className="flex items-center justify-between">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-800 grid place-items-center">
-                <Sprout className="w-5 h-5" />
-              </div>
-              <StatusPill status={l.status} />
-            </div>
-            <div className="mt-4 font-[Sora,ui-sans-serif] font-bold text-xl tracking-tight">{l.komoditas}</div>
-            <div className="text-sm text-emerald-900/60 mt-1 inline-flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5" /> {l.blok} · {l.luas} ha
-            </div>
-          </div>
-        ))}
-      </div>
-
       <div className="grid lg:grid-cols-[1.1fr_1fr] gap-6">
-        {/* Form input laporan */}
+        {/* Form Input Laporan */}
         <form onSubmit={submit} className="rounded-3xl p-6 bg-gradient-to-br from-emerald-900 to-emerald-950 text-emerald-50 shadow-lg shadow-emerald-900/20">
           <h3 className="font-[Sora,ui-sans-serif] font-bold text-lg tracking-tight mb-4">Input Laporan Harian</h3>
 
+          {/* Tab Selector */}
           <div className="flex gap-1.5 p-1 bg-emerald-950/40 rounded-2xl mb-5 overflow-x-auto">
             {tabs.map(({ key, icon: Icon }) => (
               <button
                 type="button"
                 key={key}
                 onClick={() => setTab(key)}
-                className={`flex-1 min-w-max inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-semibold transition ${
+                className={`flex-1 min-w-max inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-semibold transition cursor-pointer ${
                   tab === key ? 'bg-amber-400 text-emerald-950 shadow' : 'text-emerald-100/80 hover:text-white'
                 }`}
               >
@@ -121,7 +94,7 @@ export default function UserIndex({ user = {}, lahanSaya = [], riwayat = [] }) {
             ))}
           </div>
 
-          {/* Input Manual Blok Lahan */}
+          {/* Input Blok Lahan */}
           <label className="block mb-3">
             <span className="text-xs font-medium text-emerald-200/80">Blok / Lokasi Lahan</span>
             <div className="mt-1 relative">
@@ -130,7 +103,7 @@ export default function UserIndex({ user = {}, lahanSaya = [], riwayat = [] }) {
                 type="text"
                 value={data.blok}
                 onChange={(e) => setData('blok', e.target.value)}
-                placeholder="Contoh: Blok A1 / Sawah Barat"
+                placeholder="Contoh: Sawah kidul / Blok A"
                 className="w-full pl-10 pr-3 py-2 rounded-xl bg-emerald-950/40 border border-emerald-700/40 text-emerald-50 placeholder-emerald-200/40 focus:border-amber-400/60 focus:ring-2 focus:ring-amber-400/20 outline-none transition"
                 required
               />
@@ -138,6 +111,7 @@ export default function UserIndex({ user = {}, lahanSaya = [], riwayat = [] }) {
             {errors.blok && <span className="text-xs text-red-400">{errors.blok}</span>}
           </label>
 
+          {/* Input Tanggal */}
           <label className="block mb-3">
             <span className="text-xs font-medium text-emerald-200/80">Tanggal</span>
             <div className="mt-1 relative">
@@ -152,6 +126,7 @@ export default function UserIndex({ user = {}, lahanSaya = [], riwayat = [] }) {
             {errors.tanggal && <span className="text-xs text-red-400">{errors.tanggal}</span>}
           </label>
 
+          {/* Form Bidang Khusus Aktivitas Harian */}
           {tab !== 'Hasil Panen' && (
             <label className="block mb-3">
               <span className="text-xs font-medium text-emerald-200/80">Biaya Operasional (Rp)</span>
@@ -166,20 +141,40 @@ export default function UserIndex({ user = {}, lahanSaya = [], riwayat = [] }) {
             </label>
           )}
 
+          {/* Form Bidang Khusus Hasil Panen */}
           {tab === 'Hasil Panen' && (
-            <label className="block mb-3">
-              <span className="text-xs font-medium text-emerald-200/80">Nilai / Pendapatan Panen (Rp)</span>
-              <input
-                type="number"
-                value={data.panen}
-                onChange={(e) => setData('panen', e.target.value)}
-                placeholder="0"
-                className="mt-1 w-full px-3 py-2 rounded-xl bg-emerald-950/40 border border-emerald-700/40 text-emerald-50 placeholder-emerald-200/40 focus:border-amber-400/60 focus:ring-2 focus:ring-amber-400/20 outline-none transition"
-              />
-              {errors.panen && <span className="text-xs text-red-400">{errors.panen}</span>}
-            </label>
+            <>
+              <label className="block mb-3">
+                <span className="text-xs font-medium text-emerald-200/80">Hasil Panen (kg)</span>
+                <div className="mt-1 relative">
+                  <Scale className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-emerald-200/60" />
+                  <input
+                    type="number"
+                    value={data.hasil_panen}
+                    onChange={(e) => setData('hasil_panen', e.target.value)}
+                    placeholder="Contoh: 300"
+                    className="w-full pl-10 pr-3 py-2 rounded-xl bg-emerald-950/40 border border-emerald-700/40 text-emerald-50 placeholder-emerald-200/40 focus:border-amber-400/60 focus:ring-2 focus:ring-amber-400/20 outline-none transition"
+                    required
+                  />
+                </div>
+                {errors.hasil_panen && <span className="text-xs text-red-400">{errors.hasil_panen}</span>}
+              </label>
+
+              <label className="block mb-3">
+                <span className="text-xs font-medium text-emerald-200/80">Nilai / Pendapatan Panen (Rp)</span>
+                <input
+                  type="number"
+                  value={data.panen}
+                  onChange={(e) => setData('panen', e.target.value)}
+                  placeholder="Contoh: 500000"
+                  className="mt-1 w-full px-3 py-2 rounded-xl bg-emerald-950/40 border border-emerald-700/40 text-emerald-50 placeholder-emerald-200/40 focus:border-amber-400/60 focus:ring-2 focus:ring-amber-400/20 outline-none transition"
+                />
+                {errors.panen && <span className="text-xs text-red-400">{errors.panen}</span>}
+              </label>
+            </>
           )}
 
+          {/* Input Catatan */}
           <label className="block mb-4">
             <span className="text-xs font-medium text-emerald-200/80">Catatan Aktivitas</span>
             <textarea
@@ -203,10 +198,10 @@ export default function UserIndex({ user = {}, lahanSaya = [], riwayat = [] }) {
           </button>
         </form>
 
-        {/* Riwayat */}
+        {/* Tabel Riwayat Laporan Petani */}
         <div className="rounded-3xl bg-white border border-emerald-900/10 overflow-hidden">
           <div className="px-6 py-4 border-b border-emerald-900/10">
-            <h3 className="font-[Sora,ui-sans-serif] font-bold text-lg tracking-tight">Riwayat Terbaru</h3>
+            <h3 className="font-[Sora,ui-sans-serif] font-bold text-lg tracking-tight">Riwayat Laporan Saya</h3>
             <p className="text-xs text-emerald-900/60 mt-0.5">Status laporan yang kamu kirim.</p>
           </div>
           <ul className="divide-y divide-emerald-900/5 max-h-[520px] overflow-y-auto">
@@ -216,6 +211,7 @@ export default function UserIndex({ user = {}, lahanSaya = [], riwayat = [] }) {
             {riwayat.map((r) => {
               const nominal = Number(r.biaya || r.total_pendapatan || 0);
               const labelNominal = r.jenis === 'Hasil Panen' ? 'Panen' : 'Biaya';
+              const hasilPanenKg = Number(r.hasil_panen || r.jumlah_panen_kg || 0);
 
               return (
                 <li key={r.id} className="px-6 py-4 hover:bg-emerald-50/40 transition-colors">
@@ -231,11 +227,19 @@ export default function UserIndex({ user = {}, lahanSaya = [], riwayat = [] }) {
                         <span className="inline-flex items-center gap-1">
                           <CalendarDays className="w-3.5 h-3.5" /> {r.tanggal}
                         </span>
+                        {r.jenis === 'Hasil Panen' && (
+                          <>
+                            <span>·</span>
+                            <span className="inline-flex items-center gap-1 font-semibold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-md">
+                              <Scale className="w-3.5 h-3.5 text-amber-700" /> {hasilPanenKg.toLocaleString('id-ID')} kg
+                            </span>
+                          </>
+                        )}
                         {nominal > 0 && (
                           <>
                             <span>·</span>
-                            <span className="inline-flex items-center gap-1 font-semibold text-emerald-800 bg-amber-100/80 px-2 py-0.5 rounded-md">
-                              <Coins className="w-3.5 h-3.5 text-amber-700" /> {labelNominal}: {rupiah(nominal)}
+                            <span className="inline-flex items-center gap-1 font-semibold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-md">
+                              <Coins className="w-3.5 h-3.5 text-emerald-700" /> {labelNominal}: {rupiah(nominal)}
                             </span>
                           </>
                         )}
