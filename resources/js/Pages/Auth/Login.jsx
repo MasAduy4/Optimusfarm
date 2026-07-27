@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { Leaf, Mail, Lock, LogIn, UserPlus } from 'lucide-react';
+import { Leaf, Mail, Lock, LogIn, UserPlus, AlertCircle } from 'lucide-react';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
 
@@ -45,15 +45,19 @@ export default function Login() {
           <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-amber-400/10 blur-3xl pointer-events-none" />
           <div className="absolute -bottom-32 -left-24 w-96 h-96 rounded-full bg-emerald-400/10 blur-3xl pointer-events-none" />
 
-          {/* Logo & Brand Name */}
-          <div className="flex items-center gap-3 relative z-10" data-aos="fade-down" data-aos-delay="200">
-            <div className="w-12 h-12 rounded-2xl bg-amber-400 text-emerald-950 grid place-items-center shadow-xl">
-              <Leaf className="w-6 h-6" strokeWidth={2.5} />
-            </div>
-            <div className="font-[Sora,ui-sans-serif] font-bold text-2xl">
-              Optimus<span className="text-amber-300">Farm</span>
-            </div>
-          </div>
+        {/* Logo & Brand Name */}
+<div className="flex items-center gap-3 relative z-10" data-aos="fade-down" data-aos-delay="200">
+  <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-xl flex-shrink-0">
+    <img 
+      src="/favicon.ico" 
+      alt="OptimusFarm Logo" 
+      className="w-full h-full object-cover"
+    />
+  </div>
+  <div className="font-[Sora,ui-sans-serif] font-bold text-2xl text-white">
+    Optimus<span className="text-amber-300">Farm</span>
+  </div>
+</div>
 
           {/* Headline Text */}
           <div className="relative z-10" data-aos="fade-up" data-aos-delay="300">
@@ -73,8 +77,10 @@ export default function Login() {
 
         {/* Form Kanan dengan Animasi Fade-Up */}
         <div className="flex items-center justify-center p-6 sm:p-12">
+          {/* noValidate agar tidak ditahan tooltip bawaan browser */}
           <form 
             onSubmit={submit} 
+            noValidate
             className="w-full max-w-md"
             data-aos="fade-up"
             data-aos-delay="150"
@@ -84,23 +90,33 @@ export default function Login() {
               <p className="text-emerald-800/70 mt-2 text-sm">Masuk ke akun OptimusFarm kamu.</p>
             </div>
 
-            <label className="block mb-4">
+            {/* Input Email (Type dimatikan jadi text agar tidak divalidasi kaku oleh HTML5 browser) */}
+            <div className="mb-4">
               <span className="text-sm font-medium">Email</span>
               <div className="mt-1.5 relative">
                 <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-emerald-700/60" />
                 <input
-                  type="email"
+                  type="text"
                   value={data.email}
                   onChange={(e) => setData('email', e.target.value)}
-                  className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-emerald-900/15 bg-white focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20 outline-none transition"
+                  className={`w-full pl-10 pr-3 py-2.5 rounded-xl border bg-white focus:ring-2 outline-none transition ${
+                    errors.email 
+                      ? 'border-red-500 focus:border-red-600 focus:ring-red-500/20' 
+                      : 'border-emerald-900/15 focus:border-emerald-700 focus:ring-emerald-700/20'
+                  }`}
                   placeholder="Masukkan email anda"
-                  required
                 />
               </div>
-              {errors.email && <p className="text-xs text-red-600 mt-1">{errors.email}</p>}
-            </label>
+              {errors.email && (
+                <p className="flex items-center gap-1 text-xs text-red-600 mt-1.5 font-medium">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  {errors.email}
+                </p>
+              )}
+            </div>
 
-            <label className="block mb-4">
+            {/* Input Password */}
+            <div className="mb-4">
               <span className="text-sm font-medium">Password</span>
               <div className="mt-1.5 relative">
                 <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-emerald-700/60" />
@@ -108,15 +124,23 @@ export default function Login() {
                   type="password"
                   value={data.password}
                   onChange={(e) => setData('password', e.target.value)}
-                  className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-emerald-900/15 bg-white focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20 outline-none transition"
+                  className={`w-full pl-10 pr-3 py-2.5 rounded-xl border bg-white focus:ring-2 outline-none transition ${
+                    errors.password 
+                      ? 'border-red-500 focus:border-red-600 focus:ring-red-500/20' 
+                      : 'border-emerald-900/15 focus:border-emerald-700 focus:ring-emerald-700/20'
+                  }`}
                   placeholder="••••••••"
-                  required
                 />
               </div>
-              {errors.password && <p className="text-xs text-red-600 mt-1">{errors.password}</p>}
-            </label>
+              {errors.password && (
+                <p className="flex items-center gap-1 text-xs text-red-600 mt-1.5 font-medium">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  {errors.password}
+                </p>
+              )}
+            </div>
 
-            <label className="flex items-center gap-2 mb-6 text-sm text-emerald-900/80">
+            <label className="flex items-center gap-2 mb-6 text-sm text-emerald-900/80 cursor-pointer">
               <input
                 type="checkbox"
                 checked={data.remember}
@@ -129,7 +153,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={processing}
-              className="w-full inline-flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-semibold shadow-lg shadow-emerald-900/20 transition disabled:opacity-60"
+              className="w-full inline-flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-semibold shadow-lg shadow-emerald-900/20 transition disabled:opacity-60 cursor-pointer"
             >
               <LogIn className="w-4 h-4" />
               {processing ? 'Memproses…' : 'Masuk'}

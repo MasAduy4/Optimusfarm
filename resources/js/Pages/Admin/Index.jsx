@@ -18,9 +18,17 @@ import {
   Download,
   Printer,
   Sparkles,
+  Search,
+  Filter,
 } from 'lucide-react';
 
 const rupiah = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
+
+// Helper untuk format angka panen agar pecahan desimal tetap tampil
+const formatPanen = (n) => {
+  const num = Number(n || 0);
+  return num.toLocaleString('id-ID', { maximumFractionDigits: 2 });
+};
 
 function StatCard({ icon: Icon, label, value, sub, tone = 'emerald' }) {
   const tones = {
@@ -61,6 +69,25 @@ function StatusPill({ status }) {
 export default function AdminIndex({ stats = {}, laporanTerbaru = [] }) {
   // State Pop-Up Modal Validasi
   const [modal, setModal] = useState({ show: false, item: null, actionStatus: '' });
+
+  // State untuk Filter & Pencarian Laporan
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('semua');
+
+  // Logic Penyaringan Data Laporan (Realtime)
+  const filteredLaporan = laporanTerbaru.filter((r) => {
+    const query = search.toLowerCase();
+    const matchSearch =
+      (r.petani || '').toLowerCase().includes(query) ||
+      (r.blok || '').toLowerCase().includes(query) ||
+      (r.jenis || '').toLowerCase().includes(query) ||
+      (r.catatan || '').toLowerCase().includes(query);
+
+    const matchStatus =
+      filterStatus === 'semua' || r.status === filterStatus;
+
+    return matchSearch && matchStatus;
+  });
 
   const confirmValidation = (e, item, actionStatus) => {
     if (e) e.preventDefault();
@@ -126,7 +153,7 @@ export default function AdminIndex({ stats = {}, laporanTerbaru = [] }) {
             background: white !important;
             color: black !important;
           }
-          /* Sembunyikan tombol, aksi, modal, dan elemen non-cetak */
+          /* Sembunyikan tombol, aksi, filter, modal, dan elemen non-cetak */
           .print\\:hidden, button, .no-print {
             display: none !important;
           }
@@ -161,7 +188,7 @@ export default function AdminIndex({ stats = {}, laporanTerbaru = [] }) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={MapPin} label="Total Lahan"    value={stats.totalLahan ?? 0}                tone="emerald" />
         <StatCard icon={Users}  label="Total Petani"   value={stats.totalPetani ?? 0}               tone="cream" />
-        <StatCard icon={Sprout} label="Total Panen"    value={`${(stats.totalPanen ?? 0).toLocaleString('id-ID')} kg`} tone="slate" />
+        <StatCard icon={Sprout} label="Total Panen"    value={`${formatPanen(stats.totalPanen)} kg`} tone="slate" />
         <StatCard icon={Wallet} label="Finansial"      value={rupiah(stats.finansial)}              tone="amber" />
       </div>
 
@@ -200,12 +227,49 @@ export default function AdminIndex({ stats = {}, laporanTerbaru = [] }) {
 
       {/* Laporan terbaru */}
       <div className="mt-10 rounded-3xl bg-white border border-emerald-900/10 overflow-hidden shadow-sm">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-emerald-900/10">
-          <h3 className="font-[Sora,ui-sans-serif] text-lg font-bold tracking-tight">Laporan Terbaru</h3>
-          <Link href="/admin/laporan" className="print:hidden text-sm font-semibold text-emerald-800 hover:text-emerald-900 inline-flex items-center gap-1">
-            Lihat semua <ChevronRight className="w-4 h-4" />
-          </Link>
+        {/* Header Tabel & Control Filter */}
+        <div className="p-6 border-b border-emerald-900/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h3 className="font-[Sora,ui-sans-serif] font-bold text-lg text-emerald-950 tracking-tight">
+              Laporan Terbaru
+            </h3>
+            <p className="text-xs text-emerald-900/60 mt-0.5">
+              Manajemen data aktivitas & hasil panen petani.
+            </p>
+          </div>
+
+          {/* Input Search & Dropdown Status */}
+          <div className="print:hidden flex flex-wrap items-center gap-2.5">
+            {/* Search Input */}
+            <div className="relative flex-1 sm:w-64">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-emerald-900/40" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Cari petani, blok, atau catatan..."
+                className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-emerald-900/15 bg-emerald-50/30 text-xs text-emerald-950 placeholder-emerald-900/40 focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 outline-none transition"
+              />
+            </div>
+
+            {/* Filter Dropdown */}
+            <div className="relative">
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="pl-3 pr-8 py-1.5 rounded-xl border border-emerald-900/15 bg-emerald-50/30 text-xs text-emerald-950 focus:bg-white focus:border-emerald-600 outline-none transition appearance-none cursor-pointer font-medium"
+              >
+                <option value="semua">Semua Status</option>
+                <option value="Tervalidasi">Tervalidasi</option>
+                <option value="Menunggu Validasi">Menunggu Validasi</option>
+                <option value="Ditolak">Ditolak</option>
+              </select>
+              <Filter className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-emerald-900/40 pointer-events-none" />
+            </div>
+          </div>
         </div>
+
+        {/* Tabel Data Laporan */}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-emerald-50/60 text-emerald-900/70 text-xs uppercase tracking-wide">
@@ -221,10 +285,14 @@ export default function AdminIndex({ stats = {}, laporanTerbaru = [] }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-emerald-900/5">
-              {laporanTerbaru.length === 0 && (
-                <tr><td colSpan={8} className="px-6 py-10 text-center text-emerald-900/50">Belum ada laporan.</td></tr>
+              {filteredLaporan.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="px-6 py-10 text-center text-emerald-900/50">
+                    Tidak ada laporan yang sesuai dengan pencarian.
+                  </td>
+                </tr>
               )}
-              {laporanTerbaru.map((r) => {
+              {filteredLaporan.map((r) => {
                 const nominal = Number(r.biaya || r.total_pendapatan || 0);
                 return (
                   <tr key={r.id} className="hover:bg-emerald-50/40 transition-colors">

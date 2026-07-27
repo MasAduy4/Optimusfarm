@@ -4,79 +4,82 @@ namespace App\Http\Controllers;
 
 use App\Models\Laporan;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class LaporanController extends Controller
 {
     /**
-     * Menyimpan data laporan baru dari petani (User)
+     * Menampilkan daftar laporan untuk petani / user.
+     */
+    public function index(Request $request)
+    {
+        $user = $request->user();
+
+        // Mengambil riwayat laporan milik user yang sedang login
+        $riwayat = Laporan::where('user_id', $user->id)
+            ->latest()
+            ->get();
+
+        return Inertia::render('User/Index', [
+            'user' => $user,
+            'riwayat' => $riwayat,
+        ]);
+    }
+
+    /**
+     * Menyimpan laporan harian atau hasil panen baru dari petani.
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'blok'    => 'required|string',
-            'jenis'   => 'required|string',
-            'tanggal' => 'required|date',
-        ]);
+        $input = $request->all();
 
-        $jenis = strtolower($request->jenis ?? '');
-        $isPanen = str_contains($jenis, 'panen');
+        // 1. Sanitasi penggantian koma (,) menjadi titik (.) agar terbaca sebagai angka desimal yang valid
+        if (isset($input['jumlah_panen_kg'])) {
+            $input['jumlah_panen_kg'] = str_replace(',', '.', $input['jumlah_panen_kg']);
+        }
+        if (isset($input['hasil_panen'])) {
+            $input['hasil_panen'] = str_replace(',', '.', $input['hasil_panen']);
+        }
+        if (isset($input['biaya'])) {
+            $input['biaya'] = str_replace(',', '.', $input['biaya']);
+        }
+        if (isset($input['total_pendapatan'])) {
+            $input['total_pendapatan'] = str_replace(',', '.', $input['total_pendapatan']);
+        }
 
-        // Tangkap nilai pendapatan (uang) jika jenis laporan adalah panen
-        $totalPendapatan = $request->total_pendapatan 
-            ?? $request->pendapatan 
-            ?? $request->nominal 
-            ?? 0;
+        // 2. Validasi input (Menggunakan 'numeric' agar mendukung angka desimal)
+        $validated = validator($input, [
+            'blok'             => 'required|string|max:255',
+            'jenis'            => 'required|string|max:255',
+            'tanggal'          => 'required|date',
+            'catatan'          => 'required|string',
+            'biaya'            => 'nullable|numeric|min:0',
+            'total_pendapatan' => 'nullable|numeric|min:0',
+            'jumlah_panen_kg'  => 'nullable|numeric|min:0',
+            'hasil_panen'      => 'nullable|numeric|min:0',
+        ], [
+            'blok.required'    => 'Blok / Lokasi Lahan wajib diisi.',
+            'catatan.required' => 'Catatan Aktivitas wajib diisi.',
+            'tanggal.required' => 'Tanggal laporan wajib diisi.',
+            'numeric'          => 'Nilai yang dimasukkan harus berupa angka valid.',
+        ])->validate();
 
-        // Tangkap berat panen (KG)
-        $jumlahPanenKg = $request->jumlah_panen_kg 
-            ?? $request->hasil_panen 
-            ?? $request->panen_kg 
-            ?? 0;
+        // Penanganan nilai default untuk jumlah panen (mengambil nilai dari hasil_panen atau jumlah_panen_kg)
+        $jumlahPanen = $validated['hasil_panen'] ?? $validated['jumlah_panen_kg'] ?? 0;
 
-        // Tangkap biaya operasional jika jenis laporan adalah aktivitas harian
-        $biaya = $request->biaya 
-            ?? $request->biaya_operasional 
-            ?? ($isPanen ? 0 : ($request->nominal ?? 0));
-
+        // 3. Simpan data laporan ke database
         Laporan::create([
-            'user_id'          => auth()->id(),
-            'blok'             => $request->blok,
-            'jenis'            => $request->jenis,
-            'tanggal'          => $request->tanggal,
-            'catatan'          => $request->catatan,
-            'biaya'            => $biaya,
-            'total_pendapatan' => $isPanen ? $totalPendapatan : 0,
-            'jumlah_panen_kg'  => $isPanen ? $jumlahPanenKg : 0,
+            'user_id'          => $request->user()->id,
+            'blok'             => $validated['blok'],
+            'jenis'            => $validated['jenis'],
+            'tanggal'          => $validated['tanggal'],
+            'catatan'          => $validated['catatan'],
+            'biaya'            => $validated['biaya'] ?? 0,
+            'total_pendapatan' => $validated['total_pendapatan'] ?? 0,
+            'jumlah_panen_kg'  => $jumlahPanen,
             'status'           => 'Menunggu Validasi',
         ]);
 
-        return redirect()->back();
-    }
-
-    /**
-     * Memperbarui status laporan (Tervalidasi / Ditolak) oleh Admin
-     */
-    public function updateStatus(Request $request, Laporan $laporan)
-    {
-        $request->validate([
-            'status' => 'required|in:Tervalidasi,Ditolak,Menunggu Validasi',
-        ]);
-
-        $laporan->update([
-            'status' => $request->status,
-        ]);
-
-        return back()->with('success', 'Status laporan berhasil diperbarui.');
-    }
-
-    /**
-     * Menghapus laporan berdasarkan ID
-     */
-    public function destroy($id)
-    {
-        $laporan = Laporan::findOrFail($id);
-        $laporan->delete();
-
-        return back()->with('success', 'Laporan berhasil dihapus.');
+        return back()->with('message', 'Laporan berhasil dikirim dan menunggu validasi.');
     }
 }

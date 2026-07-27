@@ -34,6 +34,17 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            // TAMBAHKAN BAGIAN INI AGAR ERROR DARI LARAVEL SAMPAI KE REACT/INERTIA
+            'errors' => function () use ($request) {
+                return $request->session()->get('errors')
+                    ? $request->session()->get('errors')->getBag('default')->getMessages()
+                    : (object) [];
+            },
+            'flash' => [
+                'message' => fn () => $request->session()->get('message'),
+                'success' => fn () => $request->session()->get('success'),
+                'error'   => fn () => $request->session()->get('error'),
+            ],
         ];
     }
 }

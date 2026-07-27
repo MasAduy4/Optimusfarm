@@ -223,6 +223,43 @@ class DashboardController extends Controller
     }
 
     /**
+ * Simpan Laporan Aktivitas Harian Petani
+ */
+public function store(Request $request)
+{
+    // Tambahkan custom validation & custom messages dalam Bahasa Indonesia
+    $validated = $request->validate([
+        'blok'    => 'required|string',
+        'catatan' => 'required|string',
+    ], [
+        'blok.required'    => 'Blok / Lokasi Lahan wajib diisi.',
+        'catatan.required' => 'Catatan Aktivitas wajib diisi.',
+    ]);
+
+    // Format input desimal agar mengganti koma (,) menjadi titik (.) jika ada
+    $biaya = $request->biaya ? floatval(str_replace(',', '.', $request->biaya)) : 0;
+    $jumlahPanen = $request->jumlah_panen_kg ?? $request->hasil_panen;
+    $jumlahPanen = $jumlahPanen ? floatval(str_replace(',', '.', $jumlahPanen)) : 0;
+    $totalPendapatan = $request->total_pendapatan ?? $request->panen;
+    $totalPendapatan = $totalPendapatan ? floatval(str_replace(',', '.', $totalPendapatan)) : 0;
+
+    if (class_exists(Laporan::class)) {
+        Laporan::create([
+            'user_id'          => $request->user()->id,
+            'jenis'            => $request->jenis ?? 'Aktivitas Harian',
+            'blok'             => $validated['blok'],
+            'tanggal'          => $request->tanggal ?? now()->format('Y-m-d'),
+            'biaya'            => $biaya,
+            'jumlah_panen_kg'  => $jumlahPanen,
+            'total_pendapatan' => $totalPendapatan,
+            'catatan'          => $validated['catatan'],
+            'status'           => 'Menunggu Validasi',
+        ]);
+    }
+
+    return redirect()->back(303);
+}
+    /**
      * Dashboard Khusus Petani (User)
      */
     public function user(Request $request)

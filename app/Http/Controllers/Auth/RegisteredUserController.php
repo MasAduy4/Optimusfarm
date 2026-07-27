@@ -33,15 +33,34 @@ class RegisteredUserController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'email' => [
+                'required',
+                'string',
+                'lowercase',
+                'email',
+                'max:255',
+                'unique:'.User::class,
+                'regex:/^[a-zA-Z0-9._%+-]+@gmail\.com$/i',
+            ],
+            // Ubah rule password menjadi string langsung agar custom message terbaca sempurna
+            'password' => 'required|confirmed|min:8', 
+        ], [
+            // Custom Messages Bahasa Indonesia
+            'name.required'        => 'Nama lengkap wajib diisi.',
+            'email.required'       => 'Email wajib diisi.',
+            'email.email'          => 'Format email tidak valid.',
+            'email.unique'         => 'Email ini sudah terdaftar. Silakan login atau gunakan email lain.',
+            'email.regex'          => 'Email harus menggunakan domain @gmail.com (contoh: nama@gmail.com).',
+            'password.required'    => 'Password wajib diisi.',
+            'password.min'         => 'Password minimal harus terdiri dari 8 karakter.',
+            'password.confirmed'   => 'Konfirmasi password tidak cocok.',
         ]);
 
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
+            'name'     => $request->name,
+            'email'    => $request->email,
             'password' => Hash::make($request->password),
-            'role' => 'user', 
+            'role'     => 'user', 
         ]);
 
         event(new Registered($user));

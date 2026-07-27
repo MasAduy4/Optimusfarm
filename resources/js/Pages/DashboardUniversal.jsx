@@ -1,18 +1,19 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Head } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { 
   Sprout, 
   Users, 
   MapPin, 
-  Wallet,
   BadgeCheck,
   XCircle,
   Clock,
   FileText,
   Wheat,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Search,
+  Filter
 } from 'lucide-react';
 
 const rupiah = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
@@ -57,51 +58,82 @@ function StatusPill({ status }) {
 }
 
 export default function DashboardUniversal({ user, stats = {}, laporanTerbaru = [] }) {
-  // 1. FILTER STRICT: Aktivitas Harian (Aktivitas Harian saja)
-  const laporanAktivitas = useMemo(() => {
+  // State Filter Tabel 1 (Aktivitas)
+  const [searchAktivitas, setSearchAktivitas] = useState('');
+  const [statusAktivitas, setStatusAktivitas] = useState('ALL');
+
+  // State Filter Tabel 2 (Hasil Panen)
+  const [searchPanen, setSearchPanen] = useState('');
+  const [statusPanen, setStatusPanen] = useState('ALL');
+
+  // 1. RAW DATA STRICT FILTER
+  const rawAktivitas = useMemo(() => {
     return laporanTerbaru.filter((r) => r.jenis === 'Aktivitas Harian');
   }, [laporanTerbaru]);
 
-  // 2. FILTER STRICT: Hasil Panen (Hasil Panen saja)
-  const laporanPanen = useMemo(() => {
+  const rawPanen = useMemo(() => {
     return laporanTerbaru.filter((r) => r.jenis === 'Hasil Panen');
   }, [laporanTerbaru]);
 
-  // 3. KALKULASI FINANSIAL: LABA / RUGI
-  // Total Pendapatan dari Hasil Panen (Tervalidasi)
+  // 2. FILTERED DATA TABEL 1 (Aktivitas Harian)
+  const filteredAktivitas = useMemo(() => {
+    return rawAktivitas.filter((r) => {
+      const matchSearch =
+        (r.petani ?? '').toLowerCase().includes(searchAktivitas.toLowerCase()) ||
+        (r.blok ?? '').toLowerCase().includes(searchAktivitas.toLowerCase()) ||
+        (r.catatan ?? '').toLowerCase().includes(searchAktivitas.toLowerCase());
+
+      const matchStatus = statusAktivitas === 'ALL' || r.status === statusAktivitas;
+
+      return matchSearch && matchStatus;
+    });
+  }, [rawAktivitas, searchAktivitas, statusAktivitas]);
+
+  // 3. FILTERED DATA TABEL 2 (Hasil Panen)
+  const filteredPanen = useMemo(() => {
+    return rawPanen.filter((r) => {
+      const matchSearch =
+        (r.petani ?? '').toLowerCase().includes(searchPanen.toLowerCase()) ||
+        (r.blok ?? '').toLowerCase().includes(searchPanen.toLowerCase());
+
+      const matchStatus = statusPanen === 'ALL' || r.status === statusPanen;
+
+      return matchSearch && matchStatus;
+    });
+  }, [rawPanen, searchPanen, statusPanen]);
+
+  // 4. KALKULASI FINANSIAL: LABA / RUGI (Berdasarkan data Tervalidasi)
   const totalPendapatanPanen = useMemo(() => {
-    return laporanPanen.reduce((acc, r) => {
+    return rawPanen.reduce((acc, r) => {
       if (r.status === 'Tervalidasi') {
         return acc + Number(r.total_pendapatan || r.biaya || 0);
       }
       return acc;
     }, 0);
-  }, [laporanPanen]);
+  }, [rawPanen]);
 
-  // Total Biaya dari Aktivitas Harian (Tervalidasi)
   const totalBiayaAktivitas = useMemo(() => {
-    return laporanAktivitas.reduce((acc, r) => {
+    return rawAktivitas.reduce((acc, r) => {
       if (r.status === 'Tervalidasi') {
         return acc + Number(r.biaya || 0);
       }
       return acc;
     }, 0);
-  }, [laporanAktivitas]);
+  }, [rawAktivitas]);
 
-  // Net Finansial = Pendapatan Panen - Biaya Harian
   const labaRugiNet = totalPendapatanPanen - totalBiayaAktivitas;
 
-  // 4. KALKULASI TOTAL PANEN (KG)
+  // 5. KALKULASI TOTAL PANEN (KG)
   const totalPanenKg = useMemo(() => {
-    return laporanPanen.reduce((acc, r) => {
+    return rawPanen.reduce((acc, r) => {
       if (r.status === 'Tervalidasi') {
         return acc + Number(r.hasil_panen || 0);
       }
       return acc;
     }, 0);
-  }, [laporanPanen]);
+  }, [rawPanen]);
 
-  // 5. KALKULASI TOTAL LAHAN UNIK
+  // 6. KALKULASI TOTAL LAHAN UNIK
   const totalLahanTabel = useMemo(() => {
     if (!laporanTerbaru || laporanTerbaru.length === 0) return 0;
     const lahanUnik = new Set(
@@ -180,11 +212,39 @@ export default function DashboardUniversal({ user, stats = {}, laporanTerbaru = 
 
       {/* TABEL 1: Laporan Aktivitas Harian */}
       <div className="mt-8 rounded-3xl bg-white border border-emerald-900/10 overflow-hidden shadow-sm">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-emerald-900/10">
-          <h3 className="font-[Sora,ui-sans-serif] text-lg font-bold tracking-tight flex items-center gap-2">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 py-4 border-b border-emerald-900/10">
+          <h3 className="font-[Sora,ui-sans-serif] text-lg font-bold tracking-tight flex items-center gap-2 shrink-0">
             <FileText className="w-5 h-5 text-emerald-700" /> Laporan Aktivitas Terbaru
           </h3>
+
+          {/* Baris Search & Filter Tabel 1 */}
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+            <div className="relative flex-1 sm:w-64">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Cari petani, blok, atau catatan..."
+                value={searchAktivitas}
+                onChange={(e) => setSearchAktivitas(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+              />
+            </div>
+            <div className="relative">
+              <Filter className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <select
+                value={statusAktivitas}
+                onChange={(e) => setStatusAktivitas(e.target.value)}
+                className="pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition cursor-pointer"
+              >
+                <option value="ALL">Semua Status</option>
+                <option value="Tervalidasi">Tervalidasi</option>
+                <option value="Menunggu Validasi">Menunggu Validasi</option>
+                <option value="Ditolak">Ditolak</option>
+              </select>
+            </div>
+          </div>
         </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-emerald-50/60 text-emerald-900/70 text-xs uppercase tracking-wide">
@@ -199,14 +259,16 @@ export default function DashboardUniversal({ user, stats = {}, laporanTerbaru = 
               </tr>
             </thead>
             <tbody className="divide-y divide-emerald-900/5">
-              {laporanAktivitas.length === 0 && (
+              {filteredAktivitas.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-6 py-10 text-center text-emerald-900/50">
-                    Belum ada laporan aktivitas harian.
+                    {searchAktivitas || statusAktivitas !== 'ALL'
+                      ? 'Laporan aktivitas tidak ditemukan.'
+                      : 'Belum ada laporan aktivitas harian.'}
                   </td>
                 </tr>
               )}
-              {laporanAktivitas.map((r) => (
+              {filteredAktivitas.map((r) => (
                 <tr key={r.id} className="hover:bg-emerald-50/40 transition-colors">
                   <td className="px-6 py-3.5 font-semibold text-emerald-950">{r.petani}</td>
                   <td className="px-6 py-3.5">
@@ -233,18 +295,45 @@ export default function DashboardUniversal({ user, stats = {}, laporanTerbaru = 
 
       {/* TABEL 2: Laporan Hasil Panen */}
       <div className="mt-8 rounded-3xl bg-white border border-emerald-900/10 overflow-hidden shadow-sm">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-emerald-900/10 bg-amber-500/5">
-          <h3 className="font-[Sora,ui-sans-serif] text-lg font-bold tracking-tight text-emerald-950 flex items-center gap-2">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 py-4 border-b border-emerald-900/10 bg-amber-500/5">
+          <h3 className="font-[Sora,ui-sans-serif] text-lg font-bold tracking-tight text-emerald-950 flex items-center gap-2 shrink-0">
             <Wheat className="w-5 h-5 text-amber-600" /> Laporan Hasil Panen
           </h3>
+
+          {/* Baris Search & Filter Tabel 2 */}
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+            <div className="relative flex-1 sm:w-64">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Cari petani, atau blok..."
+                value={searchPanen}
+                onChange={(e) => setSearchPanen(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition"
+              />
+            </div>
+            <div className="relative">
+              <Filter className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <select
+                value={statusPanen}
+                onChange={(e) => setStatusPanen(e.target.value)}
+                className="pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition cursor-pointer"
+              >
+                <option value="ALL">Semua Status</option>
+                <option value="Tervalidasi">Tervalidasi</option>
+                <option value="Menunggu Validasi">Menunggu Validasi</option>
+                <option value="Ditolak">Ditolak</option>
+              </select>
+            </div>
+          </div>
         </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-amber-50/60 text-emerald-900/70 text-xs uppercase tracking-wide">
               <tr>
                 <th className="text-left px-6 py-3 font-semibold">Petani</th>
                 <th className="text-left px-6 py-3 font-semibold">Blok</th>
-                <th className="text-left px-6 py-3 font-semibold">Komoditas</th>
                 <th className="text-left px-6 py-3 font-semibold">Hasil Panen (kg)</th>
                 <th className="text-left px-6 py-3 font-semibold">Total Pendapatan</th>
                 <th className="text-left px-6 py-3 font-semibold">Tanggal</th>
@@ -252,14 +341,16 @@ export default function DashboardUniversal({ user, stats = {}, laporanTerbaru = 
               </tr>
             </thead>
             <tbody className="divide-y divide-emerald-900/5">
-              {laporanPanen.length === 0 && (
+              {filteredPanen.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-6 py-10 text-center text-emerald-900/50">
-                    Belum ada laporan hasil panen.
+                    {searchPanen || statusPanen !== 'ALL'
+                      ? 'Laporan hasil panen tidak ditemukan.'
+                      : 'Belum ada laporan hasil panen.'}
                   </td>
                 </tr>
               )}
-              {laporanPanen.map((r) => (
+              {filteredPanen.map((r) => (
                 <tr key={r.id} className="hover:bg-amber-50/30 transition-colors">
                   <td className="px-6 py-3.5 font-semibold text-emerald-950">{r.petani}</td>
                   <td className="px-6 py-3.5">
@@ -267,7 +358,6 @@ export default function DashboardUniversal({ user, stats = {}, laporanTerbaru = 
                       {r.blok ?? '-'}
                     </span>
                   </td>
-                  <td className="px-6 py-3.5 font-medium text-emerald-900">{r.komoditas ?? 'Padi'}</td>
                   <td className="px-6 py-3.5 font-bold text-amber-700">
                     {Number(r.hasil_panen || 0).toLocaleString('id-ID')} kg
                   </td>

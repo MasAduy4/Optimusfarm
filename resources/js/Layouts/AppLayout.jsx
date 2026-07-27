@@ -20,9 +20,6 @@ export default function AppLayout({ children, title = 'OptimusFarm' }) {
   const adminNav = [
     { label: 'Dashboard',     href: '/dashboard-universal', icon: LayoutDashboard },
     { label: 'Console Admin', href: '/admin/dashboard',    icon: ShieldCheck },
-    { label: 'Kelola Lahan',  href: '/admin/lahan',        icon: MapPin },
-    { label: 'Kelompok Tani', href: '/admin/poktan',       icon: Users },
-    { label: 'Laporan',       href: '/admin/laporan',      icon: ClipboardList },
   ];
 
   // Navigasi untuk Petani / User
@@ -45,21 +42,25 @@ export default function AppLayout({ children, title = 'OptimusFarm' }) {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           
           {/* Logo */}
-          <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-400/90 text-emerald-950 grid place-items-center shadow-lg shadow-amber-500/20">
-              <Leaf className="w-5 h-5" strokeWidth={2.5} />
-            </div>
-            <div>
-              <div className="font-['Sora',sans-serif] font-bold tracking-tight text-lg leading-none">
-                Optimus<span className="text-amber-300">Farm</span>
-              </div>
-              <div className="text-xs text-emerald-300/80 mt-0.5 font-['Manrope',sans-serif]">
-                {url === '/dashboard-universal'
-                  ? 'Dashboard Utama'
-                  : (role === 'admin' ? 'Admin Console' : 'Petani Dashboard')}
-              </div>
-            </div>
-          </Link>
+<Link href="/dashboard" className="flex items-center gap-3">
+  <div className="w-10 h-10 rounded-2xl overflow-hidden shadow-lg shadow-emerald-950/20 flex-shrink-0">
+    <img 
+      src="/favicon.ico" 
+      alt="OptimusFarm Logo" 
+      className="w-full h-full object-cover"
+    />
+  </div>
+  <div>
+    <div className="font-['Sora',sans-serif] font-bold tracking-tight text-lg leading-none">
+      Optimus<span className="text-amber-300">Farm</span>
+    </div>
+    <div className="text-xs text-emerald-300/80 mt-0.5 font-['Manrope',sans-serif]">
+      {url === '/dashboard-universal'
+        ? 'Dashboard Utama'
+        : (role === 'admin' ? 'Admin Console' : 'Petani Dashboard')}
+    </div>
+  </div>
+</Link>
 
           {/* Menu Navigasi */}
           <nav className="hidden md:flex items-center gap-1 font-['Manrope',sans-serif]">

@@ -19,7 +19,11 @@ return new class extends Migration
             $table->string('jenis')->default('Aktivitas Harian'); // Aktivitas Harian / Bahan & Obat / Hasil Panen
             $table->date('tanggal');
             $table->decimal('biaya', 15, 2)->default(0);
-            $table->integer('jumlah_panen_kg')->default(0);
+
+            // 🟢 UBAH DARI integer MENJADI decimal(10, 3) 
+            // Mendukung presisi hingga 3 angka di belakang koma (contoh: 12.500)
+            $table->decimal('jumlah_panen_kg', 10, 3)->default(0);
+
             $table->decimal('total_pendapatan', 15, 2)->default(0);
             $table->text('catatan')->nullable();
             $table->string('blok')->default('-');
