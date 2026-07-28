@@ -4,7 +4,7 @@ use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
-// Buat folder storage sementara di Vercel (/tmp)
+// Buat direktori sementara di Vercel (/tmp)
 $storageDirs = [
     '/tmp/storage/app/public',
     '/tmp/storage/framework/views',
@@ -20,20 +20,20 @@ foreach ($storageDirs as $dir) {
     }
 }
 
-// Override lokasi storage dan cache ke /tmp
+// Set environment path untuk Vercel
 $_ENV['APP_STORAGE_PATH'] = '/tmp/storage';
 $_ENV['APP_SERVICES_CACHE'] = '/tmp/bootstrap/cache/services.php';
 $_ENV['APP_PACKAGES_CACHE'] = '/tmp/bootstrap/cache/packages.php';
 $_ENV['APP_CONFIG_CACHE'] = '/tmp/bootstrap/cache/config.php';
 $_ENV['APP_ROUTES_CACHE'] = '/tmp/bootstrap/cache/routes.php';
 
-// Load Composer Autoloader
+// Autoload Composer
 require __DIR__ . '/../vendor/autoload.php';
 
 // Bootstrap Laravel
 $app = require_once __DIR__ . '/../bootstrap/app.php';
 
-// Atur instance storage ke /tmp
+// Paksa Laravel menggunakan storage path /tmp
 $app->useStoragePath('/tmp/storage');
 
 // Handle Request
