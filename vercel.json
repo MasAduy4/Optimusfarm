@@ -10,9 +10,6 @@
             "maxDuration": 10
         }
     },
-    "env": {
-        "VERCEL_PHP_VERSION": "8.3"
-    },
     "routes": [
         {
             "src": "/build/(.*)",
