@@ -113,5 +113,5 @@ Admin:
 
 
 User:
-* **Email:** `gaming@gmail.com`
-* **Password:** `papagaben`
+* **Email:** `vano@gmail.com`
+* **Password:** `password`
