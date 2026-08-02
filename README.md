@@ -109,7 +109,7 @@ Gunakan akun bawaan di bawah ini untuk masuk ke dalam aplikasi:
 
 Admin:
 * **Email:** `admin@gmail.com`
-* **Password:** `password`
+* **Password:** `password123`
 
 
 User:
